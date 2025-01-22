@@ -1,0 +1,14 @@
+{
+  "name": "birthday-chorus-app",
+  "version": "1.0.0",
+  "description": "An app to create virtual birthday choruses",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "start": "http-server . -p 3000"
+  },
+  "dependencies": {
+    "http-server": "^14.1.1"
+  }
+} 

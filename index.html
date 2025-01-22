@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Birthday Chorus App</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- Add Plyr CSS -->
+    <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
+  </head>
+  <body>
+    <div class="container">
+      <h1>Birthday Chorus App</h1>
+      
+      <div class="recording-section">
+        <div id="deviceError" class="device-error">
+          Device access error. Please check your permissions and device connections.
+        </div>
+        <div id="permissionPrompt" class="permission-prompt">
+          Please allow access to your camera and microphone to use this app.
+        </div>
+
+        <div class="device-controls">
+          <div class="select-wrapper">
+            <label for="cameraSelect">Camera:</label>
+            <select id="cameraSelect" class="device-select"></select>
+          </div>
+          <div class="select-wrapper">
+            <label for="microphoneSelect">Microphone:</label>
+            <select id="microphoneSelect" class="device-select"></select>
+          </div>
+        </div>
+
+        <!-- Add Metronome Canvas -->
+        <canvas id="metronomeCanvas" class="metronome-canvas"></canvas>
+        
+        <!-- Add Waveform Visualization -->
+        <canvas id="waveformCanvas" class="waveform-canvas"></canvas>
+
+        <div class="video-preview">
+          <video id="previewVideo" autoplay muted playsinline></video>
+          <div id="recordingOverlay" class="recording-overlay">
+            <div class="recording-indicator"></div>
+            <div id="recordingStatus" class="status">Ready to record</div>
+          </div>
+        </div>
+        
+        <div class="controls">
+          <button id="recordButton" class="btn primary">Start Recording</button>
+          <button id="switchCamera" class="btn">Switch Camera</button>
+        </div>
+      </div>
+
+      <div class="preview-section">
+        <h2>Preview Recording</h2>
+        <video id="recordingPreview" controls playsinline></video>
+        <div class="controls">
+          <button id="saveButton" class="btn primary" disabled>Save Recording</button>
+        </div>
+      </div>
+
+      <div class="grid-view-container">
+        <h2>Chorus Grid View</h2>
+        <div id="chorusGridView" class="chorus-grid"></div>
+        <div class="chorus-controls">
+          <button id="playChorusButton" class="btn primary">Play Chorus</button>
+          <button id="downloadChorusButton" class="btn">Download Chorus</button>
+        </div>
+      </div>
+
+      <div class="recordings-section">
+        <h2>Individual Recordings</h2>
+        <div id="recordingsList" class="recordings-list"></div>
+      </div>
+    </div>
+
+    <!-- Required Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdn.plyr.io/3.7.8/plyr.js"></script>
+    
+    <!-- Main App -->
+    <script src="app.js"></script>
+
+    <style>
+      /* Add required styles for new elements */
+      .metronome-canvas {
+          width: 200px;
+          height: 50px;
+          margin: 10px auto;
+          display: block;
+          background: #f8f8f8;
+          border-radius: 4px;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      }
+
+      .waveform-canvas {
+          width: 100%;
+          height: 100px;
+          margin: 10px auto;
+          display: block;
+          background: #f5f5f5;
+          border-radius: 4px;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      }
+
+      .countdown-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0, 0, 0, 0.7);
+          display: none;
+          justify-content: center;
+          align-items: center;
+          z-index: 1000;
+      }
+
+      .countdown-content {
+          text-align: center;
+          color: white;
+          font-family: Arial, sans-serif;
+      }
+
+      .countdown-number {
+          font-size: 72px;
+          font-weight: bold;
+          margin-bottom: 10px;
+          text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+      }
+
+      .countdown-text {
+          font-size: 24px;
+          opacity: 0.9;
+      }
+
+      /* Grid and video styles */
+      .chorus-grid {
+          display: grid;
+          gap: 10px;
+          margin: 20px 0;
+          width: 100%;
+      }
+
+      .grid-video-container {
+          position: relative;
+          width: 100%;
+          background: #000;
+          border-radius: 4px;
+          overflow: hidden;
+      }
+
+      .grid-video-container video {
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          display: block;
+          background: #000;
+      }
+
+      /* Plyr custom styles */
+      .plyr-video {
+          width: 100%;
+          border-radius: 4px;
+          overflow: hidden;
+      }
+
+      .plyr--video {
+          border-radius: 4px;
+          overflow: hidden;
+      }
+
+      /* Empty grid state */
+      .empty-grid {
+          text-align: center;
+          padding: 20px;
+          background: #f5f5f5;
+          border-radius: 4px;
+          color: #666;
+      }
+    </style>
+  </body>
+</html> 
