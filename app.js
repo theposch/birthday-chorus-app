@@ -13,13 +13,11 @@ class BirthdayChorus {
 
         // UI Elements
         this.recordButton = document.getElementById('recordButton');
-        this.saveButton = document.getElementById('saveButton');
         this.playChorusButton = document.getElementById('playChorusButton');
         this.downloadChorusButton = document.getElementById('downloadChorusButton');
         this.switchCameraButton = document.getElementById('switchCamera');
         this.recordingStatus = document.getElementById('recordingStatus');
         this.previewVideo = document.getElementById('previewVideo');
-        this.recordingPreview = document.getElementById('recordingPreview');
         this.recordingsList = document.getElementById('recordingsList');
         this.recordingOverlay = document.getElementById('recordingOverlay');
         this.chorusGridView = document.getElementById('chorusGridView');
@@ -57,6 +55,11 @@ class BirthdayChorus {
         this.waveformCanvas = document.getElementById('waveformCanvas');
         this.waveformCtx = this.waveformCanvas?.getContext('2d');
         this.visualizationRequestId = null;
+
+        // Add background music properties
+        this.backgroundMusic = new Audio('assets/Happy Birthday to You (Instrumental).mp3');
+        this.backgroundMusic.preload = 'auto';
+        this.backgroundMusic.loop = false;
 
         // Initialize the app
         this.init();
@@ -154,7 +157,6 @@ class BirthdayChorus {
                 this.toggleRecording();
             }
         });
-        this.saveButton.addEventListener('click', () => this.saveRecording());
         this.playChorusButton.addEventListener('click', () => this.playChorus());
         this.downloadChorusButton.addEventListener('click', () => this.downloadChorus());
         this.switchCameraButton.addEventListener('click', () => this.switchCamera());
@@ -349,41 +351,69 @@ class BirthdayChorus {
         }
     }
 
+    async toggleRecording() {
+        if (!this.isRecording) {
+            // Start recording immediately
+            await this.startRecording();
+            // Then start countdown overlay
+            this.startCountdown();
+        } else {
+            this.stopRecording();
+        }
+    }
+
     async startCountdown() {
         if (!this.countdownOverlay) {
             this.countdownOverlay = document.createElement('div');
             this.countdownOverlay.className = 'countdown-overlay';
             document.body.appendChild(this.countdownOverlay);
         }
-
-        this.recordButton.disabled = true;
         
         // Start metronome
         this.startMetronome();
         
-        // Visual countdown with beats
-        for (let i = 4; i > 0; i--) {
+        // Reset and prepare background music
+        this.backgroundMusic.currentTime = 0;
+        await this.backgroundMusic.load();
+        
+        // Start countdown and music together
+        const startTime = Date.now();
+        await this.backgroundMusic.play();
+        
+        // Initial countdown (5 seconds)
+        for (let i = 5; i > 0; i--) {
+            // Calculate exact time to show each number
+            const targetTime = startTime + (5 - i) * 1000;
+            const waitTime = targetTime - Date.now();
+            if (waitTime > 0) {
+                await new Promise(resolve => setTimeout(resolve, waitTime));
+            }
+            
             this.countdownOverlay.innerHTML = `
                 <div class="countdown-content">
                     <div class="countdown-number">${i}</div>
-                    <div class="countdown-text">Get ready to sing!</div>
+                    <div class="countdown-text">Get ready!</div>
                 </div>
             `;
             this.countdownOverlay.style.display = 'flex';
-            await new Promise(resolve => setTimeout(resolve, 60000 / this.metronomeBPM));
         }
 
-        // Show "GO!" for one beat
+        // Show "SING!" when the actual music starts (at 5 seconds)
+        const singSyncTime = startTime + 5000 - Date.now();
+        if (singSyncTime > 0) {
+            await new Promise(resolve => setTimeout(resolve, singSyncTime));
+        }
+        
         this.countdownOverlay.innerHTML = `
             <div class="countdown-content">
                 <div class="countdown-number">🎵</div>
-                <div class="countdown-text">Sing!</div>
+                <div class="countdown-text">SING!</div>
             </div>
         `;
         
-        await new Promise(resolve => setTimeout(resolve, 60000 / this.metronomeBPM));
+        // Keep "SING!" visible for one second
+        await new Promise(resolve => setTimeout(resolve, 1000));
         this.countdownOverlay.style.display = 'none';
-        this.recordButton.disabled = false;
     }
 
     startMetronome() {
@@ -436,15 +466,6 @@ class BirthdayChorus {
         }
     }
 
-    async toggleRecording() {
-        if (!this.isRecording) {
-            await this.startCountdown();
-            this.startRecording();
-        } else {
-            this.stopRecording();
-        }
-    }
-
     async startRecording() {
         this.mediaChunks = [];
         
@@ -466,8 +487,7 @@ class BirthdayChorus {
         this.updateDebugInfo(`Using MIME type: ${selectedMimeType}`);
         
         try {
-            // Start metronome and visualization
-            this.startMetronome();
+            // Initialize audio visualization
             await this.initializeAudioVisualization();
 
             this.mediaRecorder = new MediaRecorder(this.mediaStream, {
@@ -488,20 +508,7 @@ class BirthdayChorus {
                 alert('Recording error occurred. Please try again.');
             };
 
-            this.mediaRecorder.onstop = () => {
-                if (this.mediaChunks.length === 0) {
-                    console.error('No media data recorded');
-                    alert('No media data was recorded. Please try again.');
-                    return;
-                }
-
-                const mediaBlob = new Blob(this.mediaChunks, { type: selectedMimeType });
-                const url = URL.createObjectURL(mediaBlob);
-                this.recordingPreview.src = url;
-                this.saveButton.disabled = false;
-            };
-
-            // Start recording
+            // Start recording immediately
             this.mediaRecorder.start(1000);
             this.isRecording = true;
             this.recordButton.textContent = 'Stop Recording';
@@ -519,6 +526,7 @@ class BirthdayChorus {
         } catch (error) {
             this.stopMetronome();
             this.stopWaveformVisualization();
+            this.backgroundMusic.pause();
             console.error('Error starting recording:', error);
             alert('Failed to start recording. Please check your camera and microphone permissions.');
         }
@@ -529,41 +537,40 @@ class BirthdayChorus {
             clearTimeout(this.recordingTimeout);
         }
         
-        // Stop metronome and visualization
+        // Stop metronome, visualization, and background music
         this.stopMetronome();
         this.stopWaveformVisualization();
+        this.backgroundMusic.pause();
         
         try {
             if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
                 this.mediaRecorder.stop();
+                
+                // Add auto-save logic
+                this.mediaRecorder.onstop = () => {
+                    if (this.mediaChunks.length === 0) {
+                        console.error('No media data recorded');
+                        alert('No media data was recorded. Please try again.');
+                        return;
+                    }
+
+                    const mediaBlob = new Blob(this.mediaChunks, { type: 'video/webm' });
+                    const recording = { 
+                        blob: mediaBlob, 
+                        name: `Recording ${this.recordings.length + 1}` 
+                    };
+                    this.recordings.push(recording);
+                    this.addRecordingToList(mediaBlob, recording.name);
+                    this.addToGridView(mediaBlob);
+                };
             }
             this.isRecording = false;
             this.recordButton.textContent = 'Start Recording';
             this.recordingOverlay.classList.remove('recording');
-            this.recordingStatus.textContent = 'Recording stopped. Preview below:';
+            this.recordingStatus.textContent = 'Recording saved!';
         } catch (error) {
             console.error('Error stopping recording:', error);
             alert('Error stopping recording. Please refresh the page and try again.');
-        }
-    }
-
-    saveRecording() {
-        const name = prompt('Name this recording (optional):', `Recording ${this.recordings.length + 1}`);
-        if (!name) return;
-
-        try {
-            const mediaBlob = new Blob(this.mediaChunks, { type: 'video/webm' });
-            const recording = { blob: mediaBlob, name };
-            this.recordings.push(recording);
-            this.addRecordingToList(mediaBlob, name);
-            this.addToGridView(mediaBlob);
-            this.saveButton.disabled = true;
-            this.recordingPreview.src = '';
-            
-            console.log('Recording saved successfully:', name);
-        } catch (error) {
-            console.error('Error saving recording:', error);
-            alert('Failed to save recording. Please try again.');
         }
     }
 
@@ -600,37 +607,54 @@ class BirthdayChorus {
             video.style.height = '100%';
             video.style.objectFit = 'cover';
             
-            container.appendChild(video);
-            this.chorusGridView.appendChild(container);
-        });
-    }
-
-    addToGridView(blob) {
-        try {
-            const videoElement = document.createElement('video');
-            videoElement.src = URL.createObjectURL(blob);
-            videoElement.controls = false;
-            videoElement.muted = true;
-            videoElement.playsInline = true;
-            videoElement.preload = 'auto';
-            videoElement.className = 'plyr-video';
-            videoElement.style.display = 'block'; // Ensure video is visible
+            // Create volume controls
+            const controls = document.createElement('div');
+            controls.className = 'video-controls';
             
-            // Add error handling
-            videoElement.onerror = (error) => {
-                console.error('Video error:', error);
-                this.updateDebugInfo(`Video error: ${videoElement.error.message}`);
+            const volumeControl = document.createElement('div');
+            volumeControl.className = 'volume-control';
+            
+            const volumeIcon = document.createElement('span');
+            volumeIcon.className = 'volume-icon';
+            volumeIcon.textContent = '🔊';
+            volumeIcon.onclick = () => {
+                video.muted = !video.muted;
+                volumeIcon.textContent = video.muted ? '🔇' : '🔊';
+                volumeSlider.value = video.muted ? 0 : video.volume * 100;
             };
             
+            const volumeSlider = document.createElement('input');
+            volumeSlider.type = 'range';
+            volumeSlider.className = 'volume-slider';
+            volumeSlider.min = '0';
+            volumeSlider.max = '100';
+            volumeSlider.value = '100';
+            
+            volumeSlider.oninput = (e) => {
+                const volume = parseInt(e.target.value) / 100;
+                video.volume = volume;
+                video.muted = volume === 0;
+                volumeIcon.textContent = volume === 0 ? '🔇' : '🔊';
+            };
+            
+            volumeControl.appendChild(volumeIcon);
+            volumeControl.appendChild(volumeSlider);
+            controls.appendChild(volumeControl);
+            
+            // Add video and controls to container
+            container.appendChild(video);
+            container.appendChild(controls);
+            
             // Add to grid videos array
-            this.gridVideos.push(videoElement);
+            this.gridVideos.push(video);
             
             // Update grid layout
+            this.chorusGridView.appendChild(container);
             this.updateGridLayout();
             
             // Initialize Plyr
-            const player = new Plyr(videoElement, {
-                controls: ['play', 'progress', 'current-time', 'mute', 'volume'],
+            const player = new Plyr(video, {
+                controls: ['play'],
                 hideControls: true,
                 clickToPlay: false,
                 keyboard: { focused: false, global: false }
@@ -638,7 +662,7 @@ class BirthdayChorus {
             this.players.push(player);
             
             // Ensure video is loaded
-            videoElement.load();
+            video.load();
             
             // Add loading feedback
             this.updateDebugInfo(`Added video to grid (${this.gridVideos.length} total)`);
@@ -718,6 +742,10 @@ class BirthdayChorus {
                     throw error;
                 })
             ));
+
+            // Play background music
+            this.backgroundMusic.currentTime = 0;
+            await this.backgroundMusic.play();
 
             // Start all videos playing
             const playPromises = this.gridVideos.map(video => {
@@ -805,6 +833,9 @@ class BirthdayChorus {
             cancelAnimationFrame(this.playbackMonitor);
             this.playbackMonitor = null;
         }
+
+        // Stop background music
+        this.backgroundMusic.pause();
 
         // Stop all videos
         this.gridVideos.forEach(video => {

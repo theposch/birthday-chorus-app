@@ -51,17 +51,9 @@
         </div>
       </div>
 
-      <div class="preview-section">
-        <h2>Preview Recording</h2>
-        <video id="recordingPreview" controls playsinline></video>
-        <div class="controls">
-          <button id="saveButton" class="btn primary" disabled>Save Recording</button>
-        </div>
-      </div>
-
       <div class="grid-view-container">
         <h2>Chorus Grid View</h2>
-        <div id="chorusGridView" class="chorus-grid"></div>
+        <div id="chorusGridView" class="chorus-grid-view"></div>
         <div class="chorus-controls">
           <button id="playChorusButton" class="btn primary">Play Chorus</button>
           <button id="downloadChorusButton" class="btn">Download Chorus</button>
@@ -135,7 +127,7 @@
       }
 
       /* Grid and video styles */
-      .chorus-grid {
+      .chorus-grid-view {
           display: grid;
           gap: 10px;
           margin: 20px 0;
@@ -151,14 +143,74 @@
       }
 
       .grid-video-container video {
-          position: absolute;
-          top: 0;
-          left: 0;
           width: 100%;
           height: 100%;
           object-fit: cover;
           display: block;
           background: #000;
+      }
+
+      /* Volume control styles */
+      .video-controls {
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          background: rgba(0, 0, 0, 0.7);
+          padding: 8px;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          opacity: 0;
+          transition: opacity 0.3s ease;
+      }
+
+      .grid-video-container:hover .video-controls {
+          opacity: 1;
+      }
+
+      .volume-control {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          color: white;
+          width: 100%;
+      }
+
+      .volume-slider {
+          flex: 1;
+          -webkit-appearance: none;
+          appearance: none;
+          height: 4px;
+          background: rgba(255, 255, 255, 0.3);
+          border-radius: 2px;
+          outline: none;
+      }
+
+      .volume-slider::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          appearance: none;
+          width: 12px;
+          height: 12px;
+          background: white;
+          border-radius: 50%;
+          cursor: pointer;
+      }
+
+      .volume-slider::-moz-range-thumb {
+          width: 12px;
+          height: 12px;
+          background: white;
+          border: none;
+          border-radius: 50%;
+          cursor: pointer;
+      }
+
+      .volume-icon {
+          font-size: 18px;
+          cursor: pointer;
+          min-width: 24px;
+          text-align: center;
       }
 
       /* Plyr custom styles */
