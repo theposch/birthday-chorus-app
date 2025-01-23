@@ -167,16 +167,41 @@ class BirthdayChorus {
         this.showDeviceError(false);
         
         try {
-            // First request permissions
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-            stream.getTracks().forEach(track => track.stop()); // Stop the stream as we just needed permissions
+            // Check if mediaDevices is supported
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                throw new Error('Your browser does not support media devices. Please try using a modern browser like Chrome, Firefox, or Safari.');
+            }
 
+            // First request permissions with explicit constraints
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                },
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true
+                }
+            });
+
+            // Store this initial stream
+            this.mediaStream = stream;
+            
             // Get the list of devices
             const devices = await navigator.mediaDevices.enumerateDevices();
             
             // Filter and store devices
             this.cameras = devices.filter(device => device.kind === 'videoinput');
             this.microphones = devices.filter(device => device.kind === 'audioinput');
+
+            // Check if we have at least one camera and one microphone
+            if (this.cameras.length === 0) {
+                throw new Error('No cameras found. Please connect a camera and refresh the page.');
+            }
+            if (this.microphones.length === 0) {
+                throw new Error('No microphones found. Please connect a microphone and refresh the page.');
+            }
 
             // Update UI to show loading state
             this.cameraSelect.disabled = true;
@@ -207,8 +232,8 @@ class BirthdayChorus {
                 this._deviceListenersInitialized = true;
             }
 
-            // Initialize stream with first available devices
-            await this.updateMediaStream();
+            // Start video preview with the initial stream
+            await this.startVideoPreview();
             this.updateDebugInfo(`Found ${this.cameras.length} cameras and ${this.microphones.length} microphones`);
 
             this.showLoading(this.recordButton, false);
@@ -592,7 +617,7 @@ class BirthdayChorus {
         this.chorusGridView.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
         
         // Re-add all videos to the grid
-        this.gridVideos.forEach((video, index) => {
+        this.gridVideos.forEach(video => {
             const container = document.createElement('div');
             container.className = 'grid-video-container';
             container.style.position = 'relative';
@@ -641,35 +666,10 @@ class BirthdayChorus {
             volumeControl.appendChild(volumeSlider);
             controls.appendChild(volumeControl);
             
-            // Add video and controls to container
             container.appendChild(video);
             container.appendChild(controls);
-            
-            // Add to grid videos array
-            this.gridVideos.push(video);
-            
-            // Update grid layout
             this.chorusGridView.appendChild(container);
-            this.updateGridLayout();
-            
-            // Initialize Plyr
-            const player = new Plyr(video, {
-                controls: ['play'],
-                hideControls: true,
-                clickToPlay: false,
-                keyboard: { focused: false, global: false }
-            });
-            this.players.push(player);
-            
-            // Ensure video is loaded
-            video.load();
-            
-            // Add loading feedback
-            this.updateDebugInfo(`Added video to grid (${this.gridVideos.length} total)`);
-        } catch (error) {
-            console.error('Error adding to grid view:', error);
-            this.updateDebugInfo(`Grid view error: ${error.message}`);
-        }
+        });
     }
 
     cleanupVideoResources(video) {
@@ -1030,6 +1030,92 @@ class BirthdayChorus {
             this.audioContext.close().catch(console.error);
             this.audioContext = null;
             this.analyser = null;
+        }
+    }
+
+    addToGridView(blob) {
+        try {
+            const videoElement = document.createElement('video');
+            videoElement.src = URL.createObjectURL(blob);
+            videoElement.controls = false;
+            videoElement.muted = true;
+            videoElement.playsInline = true;
+            videoElement.preload = 'auto';
+            videoElement.className = 'plyr-video';
+            videoElement.style.display = 'block';
+            
+            // Add error handling
+            videoElement.onerror = (error) => {
+                console.error('Video error:', error);
+                this.updateDebugInfo(`Video error: ${videoElement.error.message}`);
+            };
+            
+            // Create container for video and controls
+            const container = document.createElement('div');
+            container.className = 'grid-video-container';
+            
+            // Create volume controls
+            const controls = document.createElement('div');
+            controls.className = 'video-controls';
+            
+            const volumeControl = document.createElement('div');
+            volumeControl.className = 'volume-control';
+            
+            const volumeIcon = document.createElement('span');
+            volumeIcon.className = 'volume-icon';
+            volumeIcon.textContent = '🔊';
+            volumeIcon.onclick = () => {
+                videoElement.muted = !videoElement.muted;
+                volumeIcon.textContent = videoElement.muted ? '🔇' : '🔊';
+                volumeSlider.value = videoElement.muted ? 0 : videoElement.volume * 100;
+            };
+            
+            const volumeSlider = document.createElement('input');
+            volumeSlider.type = 'range';
+            volumeSlider.className = 'volume-slider';
+            volumeSlider.min = '0';
+            volumeSlider.max = '100';
+            volumeSlider.value = '100';
+            
+            volumeSlider.oninput = (e) => {
+                const volume = parseInt(e.target.value) / 100;
+                videoElement.volume = volume;
+                videoElement.muted = volume === 0;
+                volumeIcon.textContent = volume === 0 ? '🔇' : '🔊';
+            };
+            
+            volumeControl.appendChild(volumeIcon);
+            volumeControl.appendChild(volumeSlider);
+            controls.appendChild(volumeControl);
+            
+            // Add video and controls to container
+            container.appendChild(videoElement);
+            container.appendChild(controls);
+            
+            // Add to grid videos array
+            this.gridVideos.push(videoElement);
+            
+            // Update grid layout
+            this.chorusGridView.appendChild(container);
+            this.updateGridLayout();
+            
+            // Initialize Plyr
+            const player = new Plyr(videoElement, {
+                controls: ['play'],
+                hideControls: true,
+                clickToPlay: false,
+                keyboard: { focused: false, global: false }
+            });
+            this.players.push(player);
+            
+            // Ensure video is loaded
+            videoElement.load();
+            
+            // Add loading feedback
+            this.updateDebugInfo(`Added video to grid (${this.gridVideos.length} total)`);
+        } catch (error) {
+            console.error('Error adding to grid view:', error);
+            this.updateDebugInfo(`Grid view error: ${error.message}`);
         }
     }
 }
