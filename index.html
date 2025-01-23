@@ -22,12 +22,17 @@
 
         <div class="device-controls">
           <div class="select-wrapper">
-            <label for="cameraSelect">Camera:</label>
-            <select id="cameraSelect" class="device-select"></select>
+            <label for="videoSource">Camera:</label>
+            <select id="videoSource" class="device-select"></select>
           </div>
           <div class="select-wrapper">
-            <label for="microphoneSelect">Microphone:</label>
-            <select id="microphoneSelect" class="device-select"></select>
+            <label for="audioSource">Microphone:</label>
+            <select id="audioSource" class="device-select"></select>
+          </div>
+          <div class="select-wrapper">
+            <label for="bgMusicVolume">Background Music Volume:</label>
+            <input type="range" id="bgMusicVolume" min="0" max="1" step="0.1" value="0.5" class="volume-slider">
+            <span id="bgMusicVolumeValue">50%</span>
           </div>
         </div>
 

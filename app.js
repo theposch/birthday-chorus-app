@@ -21,8 +21,10 @@ class BirthdayChorus {
         this.recordingsList = document.getElementById('recordingsList');
         this.recordingOverlay = document.getElementById('recordingOverlay');
         this.chorusGridView = document.getElementById('chorusGridView');
-        this.cameraSelect = document.getElementById('cameraSelect');
-        this.microphoneSelect = document.getElementById('microphoneSelect');
+        this.videoSource = document.getElementById('videoSource');
+        this.audioSource = document.getElementById('audioSource');
+        this.bgMusicVolume = document.getElementById('bgMusicVolume');
+        this.bgMusicVolumeValue = document.getElementById('bgMusicVolumeValue');
 
         // Additional UI elements
         this.deviceError = document.getElementById('deviceError');
@@ -59,7 +61,8 @@ class BirthdayChorus {
         // Add background music properties
         this.backgroundMusic = new Audio('assets/Happy Birthday to You (Instrumental).mp3');
         this.backgroundMusic.preload = 'auto';
-        this.backgroundMusic.loop = false;
+        this.backgroundMusic.loop = true;
+        this.backgroundMusic.volume = 0.5; // Set initial volume
 
         // Initialize the app
         this.init();
@@ -160,6 +163,7 @@ class BirthdayChorus {
         this.playChorusButton.addEventListener('click', () => this.playChorus());
         this.downloadChorusButton.addEventListener('click', () => this.downloadChorus());
         this.switchCameraButton.addEventListener('click', () => this.switchCamera());
+        this.bgMusicVolume.addEventListener('input', () => this.updateBackgroundMusicVolume());
     }
 
     async initializeDevices() {
@@ -204,31 +208,31 @@ class BirthdayChorus {
             }
 
             // Update UI to show loading state
-            this.cameraSelect.disabled = true;
-            this.microphoneSelect.disabled = true;
+            this.videoSource.disabled = true;
+            this.audioSource.disabled = true;
             this.recordButton.disabled = true;
             this.updateDebugInfo('Loading devices...');
 
-            // Populate camera select
-            this.cameraSelect.innerHTML = this.cameras.map(device => 
+            // Populate video source select
+            this.videoSource.innerHTML = this.cameras.map(device => 
                 `<option value="${device.deviceId}">${device.label || `Camera ${this.cameras.indexOf(device) + 1}`}</option>`
             ).join('');
 
-            // Populate microphone select
-            this.microphoneSelect.innerHTML = this.microphones.map(device => 
+            // Populate audio source select
+            this.audioSource.innerHTML = this.microphones.map(device => 
                 `<option value="${device.deviceId}">${device.label || `Microphone ${this.microphones.indexOf(device) + 1}`}</option>`
             ).join('');
 
             // Enable controls
-            this.cameraSelect.disabled = false;
-            this.microphoneSelect.disabled = false;
+            this.videoSource.disabled = false;
+            this.audioSource.disabled = false;
             this.recordButton.disabled = false;
             this.switchCameraButton.disabled = this.cameras.length <= 1;
 
             // Add event listeners for device selection if not already added
             if (!this._deviceListenersInitialized) {
-                this.cameraSelect.addEventListener('change', () => this.updateMediaStream());
-                this.microphoneSelect.addEventListener('change', () => this.updateMediaStream());
+                this.videoSource.addEventListener('change', () => this.updateMediaStream());
+                this.audioSource.addEventListener('change', () => this.updateMediaStream());
                 this._deviceListenersInitialized = true;
             }
 
@@ -286,8 +290,8 @@ class BirthdayChorus {
             }
 
             // Get selected devices
-            const videoDeviceId = this.cameraSelect.value;
-            const audioDeviceId = this.microphoneSelect.value;
+            const videoDeviceId = this.videoSource.value;
+            const audioDeviceId = this.audioSource.value;
 
             // Request new stream with selected devices
             this.mediaStream = await navigator.mediaDevices.getUserMedia({
@@ -366,7 +370,7 @@ class BirthdayChorus {
 
         try {
             this.currentCameraIndex = (this.currentCameraIndex + 1) % this.cameras.length;
-            this.cameraSelect.value = this.cameras[this.currentCameraIndex].deviceId;
+            this.videoSource.value = this.cameras[this.currentCameraIndex].deviceId;
             await this.updateMediaStream();
             this.updateDebugInfo(`Switched to camera: ${this.cameras[this.currentCameraIndex].label}`);
         } catch (err) {
@@ -1117,6 +1121,12 @@ class BirthdayChorus {
             console.error('Error adding to grid view:', error);
             this.updateDebugInfo(`Grid view error: ${error.message}`);
         }
+    }
+
+    updateBackgroundMusicVolume() {
+        const volume = parseFloat(this.bgMusicVolume.value);
+        this.backgroundMusic.volume = volume;
+        this.bgMusicVolumeValue.textContent = `${Math.round(volume * 100)}%`;
     }
 }
 
